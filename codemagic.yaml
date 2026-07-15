@@ -1,0 +1,59 @@
+workflows:
+  ios-absensi:
+    name: AbsensiKuliah iOS (Ad Hoc IPA)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    environment:
+      ios_signing:
+        distribution_type: ad_hoc           # ganti ke 'development' jika pakai Apple Developer gratis
+        bundle_identifier: com.yourname.AbsensiKuliah   # GANTI SESUAI BUNDLE ID DI XCODE
+      vars:
+        XCODE_SCHEME: "AbsensiKuliah"
+        XCODE_PROJECT: "AbsensiKuliah.xcodeproj"
+      xcode: latest
+      cocoapods: default
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+
+    scripts:
+      - name: Set up code signing
+        script: xcode-project use-profiles
+
+      - name: Build & Archive
+        script: |
+          xcodebuild \
+            -project "$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath "$CM_BUILD_DIR/$XCODE_SCHEME.xcarchive" \
+            clean archive \
+            CODE_SIGN_STYLE=Automatic \
+            | xcpretty
+
+      - name: Export IPA
+        script: |
+          xcodebuild \
+            -exportArchive \
+            -archivePath "$CM_BUILD_DIR/$XCODE_SCHEME.xcarchive" \
+            -exportOptionsPlist exportOptions.plist \
+            -exportPath "$CM_BUILD_DIR/ipa" \
+            | xcpretty
+
+    artifacts:
+      - "$CM_BUILD_DIR/ipa/*.ipa"
+      - "$HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM"
+
+    publishing:
+      email:
+        recipients:
+          - email_kamu@gmail.com        # GANTI dengan email kamu
+        notify:
+          success: true
+          failure: true
